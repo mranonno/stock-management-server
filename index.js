@@ -2,7 +2,6 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 // const jwt = require("jsonwebtoken");
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 
@@ -10,6 +9,7 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gk0tgqc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -24,12 +24,67 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     const dbCollection = client.db("stockManagementDB");
-    // const userCollection = dbCollection.collection("users");
+    const userCollection = dbCollection.collection("users");
     const productCollection = dbCollection.collection("products");
 
     // Write crud operation
+
+    // app.get("/user", async (req, res) => {
+    //   const { email, password } = req.body;
+    //   const query = { email: email, password: password };
+    //   const user = await userCollection.findOne(query);
+    //   res.status(200).send({
+    //     success: true,
+    //     user: {
+    //       email: user.email,
+    //       name: user.name,
+    //       image: user.image,
+    //       role: user.role,
+    //     },
+    //   });
+    // });
+
+    app.get("/user", async (req, res) => {
+      try {
+        const { email, password } = req.body;
+
+        // Validate request data
+        if (!email || !password) {
+          return res.status(400).send({
+            success: false,
+            message: "Email and password are required.",
+          });
+        }
+
+        // Query database with projection to exclude password
+        const projection = { password: 0 }; // Exclude the password field
+        const query = { email, password };
+        const user = await userCollection.findOne(query, { projection });
+
+        // Handle cases where no user is found
+        if (!user) {
+          return res.status(404).send({
+            success: false,
+            message: "User not found or invalid credentials.",
+          });
+        }
+
+        // Send user data without password
+        res.status(200).send({
+          success: true,
+          user,
+        });
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        res.status(500).send({
+          success: false,
+          message: "Internal server error.",
+        });
+      }
+    });
+
     app.post("/product/add", async (req, res) => {
       const productData = req.body;
       const result = await productCollection.insertOne(productData);
@@ -66,7 +121,7 @@ async function run() {
     });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
