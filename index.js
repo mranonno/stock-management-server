@@ -6,7 +6,6 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const port = process.env.PORT || 5001;
 
-// Middleware
 app.use(
   cors({
     origin: "*",
@@ -16,7 +15,6 @@ app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gk0tgqc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-// Create a MongoClient
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -25,7 +23,6 @@ const client = new MongoClient(uri, {
   },
 });
 
-// Connect to MongoDB
 async function run() {
   try {
     await client.connect();
