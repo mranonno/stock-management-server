@@ -3,7 +3,7 @@ const app = express();
 const cors = require("cors");
 // const jwt = require("jsonwebtoken");
 require("dotenv").config();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5001;
 
 //Middleware
 app.use(
@@ -90,8 +90,8 @@ async function run() {
     });
 
     app.post("/product/add", async (req, res) => {
-      const productData = req.body;
-      const result = await productCollection.insertOne(productData);
+      const { name, stockQuantity, date } = req.body;
+      const result = await productCollection.insertOne({ name, date, stockQuantity: parseInt(stockQuantity) });
       const query = { _id: new ObjectId(result.insertedId) };
       const product = await productCollection.findOne(query);
       res.status(200).send({ success: result.acknowledged, product: product });
@@ -105,16 +105,43 @@ async function run() {
 
     app.patch("/product/update/:id", async (req, res) => {
       const id = req.params.id;
+
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).send({ success: false, message: "Invalid product ID." });
+      }
+
       const query = { _id: new ObjectId(id) };
-      const updateProduct = req.body;
-      const updateDoc = {
-        $set: {
-          ...updateProduct,
-        },
-      };
-      const result = await productCollection.updateOne(query, updateDoc);
-      const product = await productCollection.findOne(query);
-      res.status(200).send({ success: result.acknowledged, product: product });
+
+      // Destructure and parse stockQuantity
+      let { type, stockQuantity, date } = req.body;
+
+      // Convert stockQuantity to a number
+      stockQuantity = Number(stockQuantity);
+
+      if (!["in", "out"].includes(type) || isNaN(stockQuantity) || !date) {
+        return res.status(400).send({ success: false, message: "Invalid update data." });
+      }
+
+      const increment = type === "in" ? stockQuantity : -stockQuantity;
+
+      try {
+        const updateDoc = {
+          $inc: { stockQuantity: increment },
+          $set: { date: new Date(date) },
+        };
+
+        const result = await productCollection.updateOne(query, updateDoc);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ success: false, message: "Product not found." });
+        }
+
+        const updatedProduct = await productCollection.findOne(query);
+        return res.status(200).send({ success: result.acknowledged, product: updatedProduct });
+      } catch (error) {
+        console.error("Error updating product:", error);
+        return res.status(500).send({ success: false, message: "Internal server error." });
+      }
     });
 
     app.delete("/product/delete/:id", async (req, res) => {
@@ -135,7 +162,7 @@ async function run() {
 run().catch(console.dir);
 
 //check connect with mongodb
-app.get("/", (req, res) => {
+app.get("/*", (req, res) => {
   res.send("Stock management server is running");
 });
 //
