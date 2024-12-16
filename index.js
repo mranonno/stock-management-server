@@ -34,9 +34,9 @@ async function run() {
     const historyCollection = dbCollection.collection("history");
 
     // GET /user: Fetch user data (without password)
-    app.get("/user", async (req, res) => {
+    app.post("/user", async (req, res) => {
       try {
-        const { email, password } = req.query;
+        const { email, password } = req.body; // Get email and password from the request body
 
         if (!email || !password) {
           return res.status(400).json({
@@ -71,7 +71,7 @@ async function run() {
 
     // POST /product/add: Add new product
     app.post("/product/add", async (req, res) => {
-      const { name, stockQuantity } = req.body;
+      const { name, stockQuantity, image } = req.body;
       if (!name || !stockQuantity) {
         return res.status(400).json({ success: false, message: "Name and stock quantity are required." });
       }
@@ -80,6 +80,7 @@ async function run() {
           name,
           date: new Date(),
           stockQuantity: parseInt(stockQuantity),
+          image: image || null,
         });
         const product = await productCollection.findOne({ _id: result.insertedId });
         res.status(200).json({ success: true, product });
@@ -92,7 +93,7 @@ async function run() {
     // GET /products: Get all products
     app.get("/products", async (req, res) => {
       try {
-        const products = await productCollection.find({}).sort({ date: 1 }).toArray();
+        const products = await productCollection.find({}).sort({ date: -1 }).toArray();
         res.status(200).json({ success: true, products });
       } catch (error) {
         console.error("Error fetching products:", error);
@@ -168,20 +169,45 @@ async function run() {
       }
     });
 
-    // DELETE /product/delete/:id: Delete a product
     app.delete("/product/delete/:id", async (req, res) => {
       const id = req.params.id;
+
+      console.log(id);
+
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ success: false, message: "Invalid product ID." });
+      }
+
       const filter = { _id: new ObjectId(id) };
 
+      const session = client.startSession(); // Assuming 'client' is your MongoDB client
+
       try {
-        const result = await productCollection.deleteOne(filter);
-        if (result.deletedCount === 0) {
-          return res.status(404).json({ success: false, message: "Product not found." });
-        }
-        res.status(200).json({ success: true, message: "Product deleted successfully." });
+        await session.withTransaction(async () => {
+          // Delete the product
+          const deleteResult = await productCollection.deleteOne(filter, { session });
+          if (deleteResult.deletedCount === 0) {
+            await session.abortTransaction();
+            return res.status(404).json({ success: false, message: "Product not found." });
+          }
+
+          // Update historyCollection: Set productId to null where it matches the deleted product's ID
+          const updateResult = await historyCollection.updateMany(
+            { productId: id }, // Assuming productId is stored as a string
+            { $set: { productId: null } },
+            { session }
+          );
+
+          // Optionally, you can log how many documents were updated
+          console.log(`Updated ${updateResult.modifiedCount} history records.`);
+        });
+
+        res.status(200).json({ success: true, message: "Product deleted and history updated successfully." });
       } catch (error) {
-        console.error("Error deleting product:", error);
+        console.error("Error deleting product and updating history:", error);
         res.status(500).json({ success: false, message: "Internal Server Error" });
+      } finally {
+        await session.endSession();
       }
     });
 
