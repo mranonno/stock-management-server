@@ -34,6 +34,61 @@ async function run() {
     const historyCollection = dbCollection.collection("history");
 
     // GET /user: Fetch user data (without password)
+
+    app.post("/create-user", async (req, res) => {
+      try {
+        const { fullName, email, password } = req.body;
+
+        // Input Validation
+        if (!email || !password || !fullName) {
+          return res.status(400).json({
+            success: false,
+            message: "Full Name, Email, and password are required.",
+          });
+        }
+
+        // Check if user already exists
+        const existingUser = await userCollection.findOne({ email: email.toLowerCase() });
+        if (existingUser) {
+          return res.status(409).json({
+            success: false,
+            message: "A user with this email already exists.",
+          });
+        }
+
+        // Create the user object with role "user"
+        const newUser = {
+          fullName,
+          email: email.toLowerCase(),
+          password,
+          role: "user",
+          createdAt: new Date(),
+        };
+
+        // Insert the new user into the database
+        const result = await userCollection.insertOne(newUser);
+
+        // Respond with success (you might want to exclude the password in the response)
+        return res.status(201).json({
+          success: true,
+          message: "User created successfully.",
+          user: {
+            id: result.insertedId,
+            fullName: newUser.fullName,
+            email: newUser.email,
+            role: newUser.role,
+            createdAt: newUser.createdAt,
+          },
+        });
+      } catch (error) {
+        console.error("Error creating user:", error);
+        return res.status(500).json({
+          success: false,
+          message: "An error occurred while creating the user.",
+        });
+      }
+    });
+
     app.post("/user", async (req, res) => {
       try {
         const { email, password } = req.body; // Get email and password from the request body
@@ -128,7 +183,9 @@ async function run() {
       }
 
       const query = { _id: new ObjectId(id) };
-      let { type, stockQuantity, date, name } = req.body;
+      let { type, stockQuantity, date, name, userEmail } = req.body;
+
+      const user = await userCollection.findOne({ email: userEmail.toLowerCase() });
 
       stockQuantity = Number(stockQuantity);
 
@@ -158,6 +215,10 @@ async function run() {
           type,
           stockQuantity: parseInt(stockQuantity),
           productId: id,
+          user: {
+            fullName: user.name,
+            image: user.image,
+          },
         });
         const historyQuery = { _id: new ObjectId(historyResult.insertedId) };
         const history = await historyCollection.findOne(historyQuery);
