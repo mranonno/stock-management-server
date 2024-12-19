@@ -319,7 +319,7 @@ async function run() {
     });
   } catch (error) {
     console.error("Error during MongoDB connection:", error);
-    process.exit(1); // Exit the process if MongoDB connection fails
+    process.exit(1);
   } finally {
     // Optionally, you can close the connection when the app shuts down
     // await client.close();
