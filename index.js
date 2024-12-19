@@ -13,7 +13,8 @@ app.use(
 );
 app.use(express.json());
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gk0tgqc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gk0tgqc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.nryxk.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -38,6 +39,8 @@ async function run() {
     app.post("/create-user", async (req, res) => {
       try {
         const { fullName, email, password } = req.body;
+
+        console.log("/create-user", fullName);
 
         // Input Validation
         if (!email || !password || !fullName) {
@@ -92,6 +95,7 @@ async function run() {
     app.post("/user", async (req, res) => {
       try {
         const { email, password } = req.body; // Get email and password from the request body
+        console.log("/user", email);
 
         if (!email || !password) {
           return res.status(400).json({
@@ -100,7 +104,7 @@ async function run() {
           });
         }
 
-        const projection = { password: 0 }; // Exclude the password field
+        const projection = { password: 0 };
         const query = { email, password };
         const user = await userCollection.findOne(query, { projection });
 
@@ -127,7 +131,8 @@ async function run() {
     // POST /product/add: Add new product
     app.post("/product/add", async (req, res) => {
       const { name, stockQuantity, image } = req.body;
-      if (!name || !stockQuantity) {
+      console.log("/product/add", name);
+      if (!name) {
         return res.status(400).json({ success: false, message: "Name and stock quantity are required." });
       }
       try {
@@ -216,8 +221,7 @@ async function run() {
           stockQuantity: parseInt(stockQuantity),
           productId: id,
           user: {
-            fullName: user.name,
-            image: user.image,
+            fullName: user.fullName,
           },
         });
         const historyQuery = { _id: new ObjectId(historyResult.insertedId) };
@@ -315,7 +319,7 @@ async function run() {
     });
   } catch (error) {
     console.error("Error during MongoDB connection:", error);
-    process.exit(1); // Exit the process if MongoDB connection fails
+    process.exit(1);
   } finally {
     // Optionally, you can close the connection when the app shuts down
     // await client.close();
