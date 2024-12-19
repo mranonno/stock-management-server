@@ -138,7 +138,7 @@ async function run() {
         const result = await productCollection.insertOne({
           name,
           date: new Date(),
-          stockQuantity: parseInt(stockQuantity),
+          stockQuantity: parseInt(stockQuantity) || 0,
           image: image || null,
         });
         const product = await productCollection.findOne({ _id: result.insertedId });
@@ -220,7 +220,7 @@ async function run() {
           stockQuantity: parseInt(stockQuantity),
           productId: id,
           user: {
-            fullName: user.fullName,
+            fullName: user.name,
           },
         });
         const historyQuery = { _id: new ObjectId(historyResult.insertedId) };
