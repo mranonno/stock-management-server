@@ -95,10 +95,6 @@ async function run() {
       try {
         const { email, password } = req.body; // Get email and password from the request body
         console.log("/user", email);
-        db.userCollection.updateMany(
-          {}, // Filter: empty object selects all documents
-          { $rename: { name: "fullName" } }
-        );
 
         if (!email || !password) {
           return res.status(400).json({
